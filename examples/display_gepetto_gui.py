@@ -9,13 +9,14 @@ import subprocess
 import atexit
 import os
 
-# Define robot model 
+# Define robot model
 robot_package_name = "talos_data"
 urdf_name = "talos_reduced"
 # Define environment
 env_package_name = "hpp_environments"
 env_name = "multicontact/ground" # default value, may be defined with argument
 scene_name = "world"
+window_name = "python-pinocchio"
 # timestep used to display the configurations
 DT_DISPLAY = 0.04 # 25 fps
 
@@ -56,7 +57,8 @@ if __name__ == '__main__':
 
   # Load robot model in pinocchio
   rp = RosPack()
-  urdf = rp.get_path(robot_package_name) + '/urdf/' + urdf_name + '.urdf'
+  package_path='/opt/openrobots/share/'+robot_package_name
+  urdf = package_path + '/urdf/' + urdf_name + '.urdf'
   robot = pin.RobotWrapper.BuildFromURDF(urdf, pin.StdVec_StdString(), pin.JointModelFreeFlyer())
   robot.initDisplay(loadModel=True)
   robot.displayCollisions(False)
@@ -65,23 +67,32 @@ if __name__ == '__main__':
   # Load environment model
   cl = gepetto.corbaserver.Client()
   gui = cl.gui
-  env_package_path = rp.get_path(env_package_name)
+  # env_package_path = rp.get_path(env_package_name)
+  env_package_path = '/home/daeun/devel/loco-3d/install/share/hpp_environments'
   env_urdf_path = env_package_path + '/urdf/' + env_name + '.urdf'
   gui.addUrdfObjects(scene_name + "/environments", env_urdf_path, True)
 
+  # set background color
+  from gepetto.corbaserver import gui_client
+  gui = gui_client(window_name=window_name)
+  gui.setBackgroundColor1(window_name,[1.,1.,1.,1.])
+  gui.setBackgroundColor2(window_name,[1.,1.,1.,1.])
+  # add light
+  gui.addLight("light", window_name, 0.1, [0.3,0.3,0.3,0.5])
+  gui.applyConfiguration("light", [2.5,0.,3.,0.,0.,0.,0.])
+  gui.addToGroup("light", window_name)
+  gui.refresh()
 
   # Load the motion from the multicontact-api file
   cs = ContactSequence()
   cs.loadFromBinary(cs_name)
   assert cs.haveJointsTrajectories(), "The file loaded do not have joint trajectories stored."
   q_t = cs.concatenateQtrajectories()
+
+  import mlp.viewer.display_tools as display_tools
+  from talos_rbprm.talos import Robot    as talosFull
+  fb = talosFull()
+
+  display_tools.displaySteppingStones(cs, gui, scene_name, fb)
+  input("Press Enter to display the wholebody motion ...")
   display_wb(robot, q_t)
-
-
-
-
-
-
-
-
-
